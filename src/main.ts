@@ -1,70 +1,112 @@
 // Endless Runner - Main Game Logic
 // Template cho game chạy vô tận
 
-import { Application, Assets, Sprite, Graphics } from 'pixi.js';
-import { loadGameAssets, arts, sounds } from './assetLoader';
-import { loadSpineAssets, Spine } from './assetLoader';
+import { Application, Sprite, Graphics, Container } from 'pixi.js';
+import { assetManager, arts, sounds } from './assetManager';
 import './assetLoader.config'; // Apply project configuration
+
+interface GameConfig {
+    width: number;
+    height: number;
+    backgroundColor: number;
+    antialias: boolean;
+    powerPreference?: 'default' | 'high-performance' | 'low-power';
+}
 
 class Game {
     private app: Application;
     private gameStarted = false;
     private character: any = null;
+    private gameContainer: Container;
+    private readonly config: GameConfig = {
+        width: 720,
+        height: 1280,
+        backgroundColor: 0x87CEEB,
+        antialias: true,
+        powerPreference: 'high-performance'
+    };
 
     constructor() {
         this.app = new Application();
+        this.gameContainer = new Container();
     }
 
-    async init() {
-        // Initialize PIXI Application
-        await this.app.init({
-            width: 720,
-            height: 1280,
-            backgroundColor: 0x87CEEB, // Sky blue
-            antialias: true
-        });
-
-        // Add canvas to DOM
-        const appDiv = document.getElementById('app');
-        if (appDiv) {
-            appDiv.appendChild(this.app.canvas);
-        }
-
-        // Load assets
-        console.log('Loading assets...');
-        await loadGameAssets();
-        console.log('Assets loaded!');
-
-        // Setup game
-        this.setupGame();
-        
-        // Signal ready to ad networks
-        this.signalGameReady();
-    }
-
-    private async setupGame() {
-        // Endless runner setup
-        this.setupBackground();
-        this.setupPlayer();
-        this.setupObstacles();
-        this.startGameLoop();
-        
-        console.log('Endless Runner setup complete!');
-    }
-
-    
-    private async setupSpineCharacter() {
+    async init(): Promise<void> {
         try {
-            const spineAssets = await loadSpineAssets();
-            if (spineAssets.texture && spineAssets.jsonData) {
-                // Create spine character
-                // this.character = Spine.from('spineAtlas', 'spineSkeleton');
-                // this.app.stage.addChild(this.character);
-                console.log('Spine character loaded');
+            // Initialize PIXI Application với config tối ưu
+            await this.app.init(this.config);
+
+            // Add canvas to DOM
+            const appDiv = document.getElementById('app');
+            if (!appDiv) {
+                throw new Error('App container not found');
+            }
+            appDiv.appendChild(this.app.canvas);
+
+            // Add main game container
+            this.app.stage.addChild(this.gameContainer);
+
+            // Load assets với error handling
+            console.log('🎮 Loading assets...');
+            await assetManager.loadAssets();
+            console.log('✅ Assets loaded successfully!');
+
+            // Setup game
+            await this.setupGame();
+            
+            // Signal ready to ad networks
+            this.signalGameReady();
+        } catch (error) {
+            console.error('❌ Game initialization failed:', error);
+            throw error;
+        }
+    }
+
+    private async setupGame(): Promise<void> {
+        try {
+            // Setup game components
+            await this.setupBackground();
+            await this.setupPlayer();
+            await this.setupObstacles();
+            this.startGameLoop();
+            
+            console.log('✅ Game setup complete!');
+        } catch (error) {
+            console.error('❌ Game setup failed:', error);
+            throw error;
+        }
+    }
+
+    private async setupBackground(): Promise<void> {
+        // TODO: Implement background setup
+        const bg = new Graphics()
+            .rect(0, 0, this.config.width, this.config.height)
+            .fill(0x87CEEB);
+        this.gameContainer.addChild(bg);
+    }
+
+    private async setupPlayer(): Promise<void> {
+        // TODO: Implement player setup
+        try {
+            const spineAssets = assetManager.getSpineAssets();
+            if (spineAssets && spineAssets.texture && spineAssets.jsonData) {
+                console.log('🏃 Player character ready');
+                // Spine character implementation here
             }
         } catch (error) {
-            console.warn('Failed to load spine character:', error);
+            console.warn('⚠️ Spine character fallback:', error);
+            // Fallback to simple sprite
         }
+    }
+
+    private async setupObstacles(): Promise<void> {
+        // TODO: Implement obstacles
+        console.log('🚧 Obstacles setup');
+    }
+
+    private startGameLoop(): void {
+        // TODO: Implement game loop
+        console.log('🔄 Game loop started');
     }
 
     private signalGameReady() {
