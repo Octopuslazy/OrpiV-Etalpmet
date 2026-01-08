@@ -1,10 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1.0,minimum-scale=1.0,maximum-scale=1.0"/>
     <meta name="ad-networks" content="mraid,dapi,google,facebook,unity,applovin,ironsource,vungle,mintegral,tapjoy,snapchat,tiktok">
     <title>Playable Ad</title>
+    <!-- Unity Ads specific meta tags -->
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <style>
         * {
             margin: 0;
@@ -44,6 +49,12 @@
     
     <!-- Playable SDK will auto-inject build variables here -->
     <script>
+        // Unity Ads required global variables
+        window.GOOGLE_PLAY_URL = 'https://play.google.com/store/apps/details?id=com.yourcompany.yourgame';
+        window.APP_STORE_URL = 'https://apps.apple.com/app/id1234567890';
+        window.AD_NETWORK = 'unity';
+        window.AD_PROTOCOL = 'mraid';
+        
         // Prevent context menu
         document.addEventListener('contextmenu', e => e.preventDefault());
         
@@ -65,6 +76,28 @@
         // Disable text selection
         document.onselectstart = function() { return false; };
         document.onmousedown = function() { return false; };
+        
+        // Unity MRAID Mock for testing (if not available)
+        if (typeof mraid === 'undefined') {
+            window.mraid = {
+                getState: () => 'default',
+                addEventListener: (event, callback) => {
+                    if (event === 'ready') setTimeout(callback, 100);
+                },
+                removeEventListener: () => {},
+                isViewable: () => true,
+                open: (url) => { window.open(url, '_blank'); },
+                getMaxSize: () => ({ width: window.innerWidth, height: window.innerHeight }),
+                getCurrentPosition: () => ({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }),
+                getDefaultPosition: () => ({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight }),
+                getScreenSize: () => ({ width: screen.width, height: screen.height }),
+                close: () => { console.log('MRAID close called'); },
+                expand: (url) => { console.log('MRAID expand called:', url); },
+                getExpandProperties: () => ({ width: window.innerWidth, height: window.innerHeight, useCustomClose: false }),
+                setExpandProperties: (props) => { console.log('MRAID setExpandProperties:', props); },
+                useCustomClose: (use) => { console.log('MRAID useCustomClose:', use); }
+            };
+        }
     </script>
 </body>
 </html>
