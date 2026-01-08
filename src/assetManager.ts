@@ -39,7 +39,7 @@ const DEFAULT_CONFIG: AssetConfig = {
 
 class AssetManager {
     private config: AssetConfig = DEFAULT_CONFIG;
-    private loadedAssets = new Map<string, any>();
+    public loadedAssets = new Map<string, any>();
     private spineCache: any = null;
 
     configure(newConfig: Partial<AssetConfig>): void {

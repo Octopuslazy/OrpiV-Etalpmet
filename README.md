@@ -98,13 +98,31 @@ export const projectConfig = {
 
 ## 🛠️ Development Tips
 
-### 1. Thêm assets mới
+### 1. Chỉnh sửa AssetLoader
 ```typescript
-// Trong main.ts
+- Khi không sử dụng Spine animation chỉ cần set (spine: {enabled: false}), không cần chỉnh sửa đường dẫn của các file spine hoặc code để tránh xảy ra xung đột hoặc gây bug không cần thiết 
+- Nếu có sử dụng spine animation chỉnh sửa các đường dẫn đến các file cần thiết: 
+spine: {
+        enabled: false,
+        baseName: 'kfc_chicken',
+        basePath: '../Assets/Arts/anim',
+        textureAlias: 'fixed_chicken_tex'
+    },
+    const _chickenPng = await tryImport('../Assets/Arts/anim/kfc_chicken.png');
+    const _chickenAtlas = await tryImport('../Assets/Arts/anim/kfc_chicken.atlas');
+    const _chickenJson = await tryImport('../Assets/Arts/anim/kfc_chicken.json');
+
+### 1.2. Chỉnh sửa assetPath
+```typescript
+// Trong assetPaths
+- Thêm đường dẫn phù hợp cho các tài nguyên cần load 
+### 1.3. Chỉnh sửa main.ts (file main có sẵn của template)
+```typescript
+- Chỉ sửa dụng các code có sẵn nếu phù hợp với tựa game đang build (cụ thể setupObstacles, setupPlayer, StartgameLoop cho các game dạng Run endless), nếu không sử dụng -> xóa hoặc comment tránh xung đột dẫn đến gây bug
+- Nếu không sử dụng spine animation vui lòng không chỉnh sửa file assetLoader.config.ts mà chỉ cần set 
+- Nếu cần thêm Asset: 
 const sprite = Sprite.from('your-image.png');
 const sound = Sound.from(sounds['your-sound.mp3']);
-```
-
 ### 2. Debug bundle size
 ```bash
 npm run analyze

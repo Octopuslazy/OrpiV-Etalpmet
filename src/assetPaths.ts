@@ -1,11 +1,11 @@
 export type AssetAlias = 'art' | 'arts' | 'sounds' | 'anim' | 'fonts' | string;
 
 export const ASSET_PATHS: Record<AssetAlias, string> = {
-  art: '/Assets/...',
-  arts: '/Assets/...',
-  sounds: '/Assets/...',
-  anim: '/Assets/...',
-  fonts: '/Assets/...'
+  art: '/Assets/Arts/Textures',
+  arts: '/Assets/Arts',
+  sounds: '/Assets/Sounds',
+  anim: '/Assets/Arts/Animations',
+  fonts: '/Assets/Arts/Fonts'
 };
 
 export function resolveAsset(aliasOrPath: string, filename?: string) {

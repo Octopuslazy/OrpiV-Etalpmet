@@ -4,13 +4,14 @@
 import { Application, Sprite, Graphics, Container } from 'pixi.js';
 import { assetManager, arts, sounds } from './assetManager';
 import './assetLoader.config'; // Apply project configuration
+import { AssetManager } from './managers/AssetManager';
 
 interface GameConfig {
     width: number;
     height: number;
     backgroundColor: number;
     antialias: boolean;
-    powerPreference?: 'default' | 'high-performance' | 'low-power';
+    powerPreference?: 'high-performance' | 'low-power';
 }
 
 class Game {
@@ -69,8 +70,6 @@ class Game {
             await this.setupPlayer();
             await this.setupObstacles();
             this.startGameLoop();
-            
-            console.log('✅ Game setup complete!');
         } catch (error) {
             console.error('❌ Game setup failed:', error);
             throw error;
@@ -78,7 +77,6 @@ class Game {
     }
 
     private async setupBackground(): Promise<void> {
-        // TODO: Implement background setup
         const bg = new Graphics()
             .rect(0, 0, this.config.width, this.config.height)
             .fill(0x87CEEB);
@@ -86,26 +84,21 @@ class Game {
     }
 
     private async setupPlayer(): Promise<void> {
-        // TODO: Implement player setup
         try {
             const spineAssets = assetManager.getSpineAssets();
             if (spineAssets && spineAssets.texture && spineAssets.jsonData) {
-                console.log('🏃 Player character ready');
-                // Spine character implementation here
+               
             }
         } catch (error) {
             console.warn('⚠️ Spine character fallback:', error);
-            // Fallback to simple sprite
         }
     }
 
     private async setupObstacles(): Promise<void> {
-        // TODO: Implement obstacles
-        console.log('🚧 Obstacles setup');
+         
     }
 
     private startGameLoop(): void {
-        // TODO: Implement game loop
         console.log('🔄 Game loop started');
     }
 
@@ -113,7 +106,7 @@ class Game {
         // Signal to ad networks that game is ready
         if (typeof window !== 'undefined') {
             (window as any).gameReady?.();
-            console.log('Game ready signal sent');
+           
         }
     }
 
@@ -121,14 +114,13 @@ class Game {
         if (this.gameStarted) return;
         this.gameStarted = true;
         
-        console.log('Endless Runner started!');
-        // Add your game start logic here
+       
     }
 
     close() {
-        console.log('Endless Runner closed');
-        // Add cleanup logic here
+       
     }
+     
 }
 
 // Initialize game

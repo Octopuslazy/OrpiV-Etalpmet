@@ -1,5 +1,4 @@
 import { Assets, Texture, Rectangle } from 'pixi.js';
-import * as spinePixi from '@esotericsoftware/spine-pixi-v8';
 
 declare const require: any;
 export interface AssetLoaderConfig {
@@ -22,7 +21,7 @@ export interface AssetLoaderConfig {
 // DEFAULT CONFIG - Customize this for your project
 const DEFAULT_CONFIG: AssetLoaderConfig = {
     spine: {
-        enabled: true,
+        enabled: false,
         baseName: 'kfc_chicken',
         basePath: '../Assets/Arts/anim',
         textureAlias: 'fixed_chicken_tex'
@@ -79,21 +78,26 @@ async function loadSpineAssetsDynamically() {
         };
     } catch (error) {
         console.warn('Failed to load spine assets dynamically:', error);
-        // Fallback to default if available
-        try {
-            const _chickenPng = await import('../Assets/Arts/anim/kfc_chicken.png');
-            const _chickenAtlas = await import('../Assets/Arts/anim/kfc_chicken.atlas'); 
-            const _chickenJson = await import('../Assets/Arts/anim/kfc_chicken.json');
-            
-            _spineAssets = {
-                png: _chickenPng.default || _chickenPng,
-                atlas: _chickenAtlas.default || _chickenAtlas,
-                json: _chickenJson.default || _chickenJson
-            };
-        } catch (fallbackError) {
-            console.error('Failed to load fallback spine assets:', fallbackError);
-            _spineAssets = { png: null, atlas: '', json: null };
-        }
+        // Fallback to default if available - try each import individually so
+        // missing files won't throw and will result in nulls instead.
+        const tryImport = async (p: string) => {
+            try {
+                const m = await import(p);
+                return m && m.default ? m.default : m;
+            } catch (_) {
+                return null;
+            }
+        };
+
+        const _chickenPng = await tryImport('../Assets/Arts/anim/kfc_chicken.png');
+        const _chickenAtlas = await tryImport('../Assets/Arts/anim/kfc_chicken.atlas');
+        const _chickenJson = await tryImport('../Assets/Arts/anim/kfc_chicken.json');
+
+        _spineAssets = {
+            png: _chickenPng,
+            atlas: _chickenAtlas || '',
+            json: _chickenJson
+        };
     }
     
     return _spineAssets;
@@ -217,12 +221,13 @@ export async function registerSpineForSpineFrom(atlasAlias = 'spineAtlas', skele
         const texture = await prepareSpineTexture();
         if (!texture) throw new Error('No spine texture available');
 
-        const spineModule: any = spinePixi as any;
+        // Load spine runtime dynamically so missing package doesn't break builds
+        const spineModule: any = await import('@esotericsoftware/spine-pixi-v8').catch(() => null);
         const TextureAtlasCtor = spineModule?.TextureAtlas || spineModule?.spine?.TextureAtlas || spineModule?.default?.spine?.TextureAtlas;
         const SpineTextureCtor = spineModule?.SpineTexture || spineModule?.spine?.SpineTexture || spineModule?.default?.spine?.SpineTexture;
 
         if (!TextureAtlasCtor || !SpineTextureCtor) {
-            console.warn('Spine TextureAtlas or SpineTexture not found in runtime');
+            console.warn('Spine runtime not available; skipping spine registration');
             return false;
         }
 
