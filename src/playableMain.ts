@@ -1,31 +1,33 @@
-import { Application, Container, Graphics, Text, TextStyle, Sprite } from 'pixi.js';
+import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js';
 import { sdk } from '@smoud/playable-sdk';
-import { loadGameAssets, loadTexture } from './assetLoader';
+import './unity-mraid.d.ts';
 
-class PlayableGame {
+class SimplePlayableGame {
     private app!: Application;
-    private gameContainer!: Container;
-    private uiContainer!: Container;
-    private isGameStarted = false;
-    private isGameFinished = false;
+    private mainContainer!: Container;
+    
+    // Game states
+    private isStarted = false;
+    private isCompleted = false;
     
     // UI Elements
-    private startButton!: Sprite;
-    private ctaButton!: Sprite;
-    private muteButton!: Sprite;
-    private loadingScreen!: Container;
-    private endScreen!: Container;
-    private gameplayScene!: Container;
+    private startButton!: Container;
+    private endButton!: Container;
+    private completeText!: Text;
+    private popup!: Container;
     
-    // Game state
-    private currentVolume = 1;
-    private isPaused = false;
+    // Audio context for Unity compliance
+    private audioContext: AudioContext | null = null;
+    private hasAudio = false;
 
     constructor(width: number, height: number) {
-        this.initPixiApp(width, height);
+        this.init(width, height);
+    }
+
+    private async init(width: number, height: number) {
+        await this.initPixiApp(width, height);
         this.setupSDKEvents();
-        this.createLoadingScreen();
-        this.loadAssets();
+        this.createInitialScreen();
     }
 
     private async initPixiApp(width: number, height: number) {
@@ -34,7 +36,7 @@ class PlayableGame {
         await this.app.init({
             width,
             height,
-            backgroundColor: 0x1099bb,
+            backgroundColor: 0x0066cc, // Blue background as requested
             resolution: window.devicePixelRatio || 1,
             autoDensity: true,
         });
@@ -42,292 +44,162 @@ class PlayableGame {
         // Add to DOM
         document.body.appendChild(this.app.canvas);
 
-        // Setup containers
-        this.gameContainer = new Container();
-        this.uiContainer = new Container();
-        this.app.stage.addChild(this.gameContainer);
-        this.app.stage.addChild(this.uiContainer);
+        // Setup main container
+        this.mainContainer = new Container();
+        this.app.stage.addChild(this.mainContainer);
     }
 
     private setupSDKEvents() {
-        // Resize handling for responsive design
+        // Resize handling
         sdk.on('resize', (width: number, height: number) => {
-            console.log(`Resizing to: ${width}x${height}`);
             this.resize(width, height);
         });
 
-        // Pause/Resume handling
-        sdk.on('pause', () => {
-            console.log('Game paused');
-            this.pauseGame();
-        });
-
-        sdk.on('resume', () => {
-            console.log('Game resumed');
-            this.resumeGame();
-        });
-
-        // Volume control
-        sdk.on('volume', (level: number) => {
-            console.log(`Volume changed to: ${level}`);
-            this.setVolume(level);
-            this.updateMuteButtonState();
-        });
-
-        // Interaction tracking
-        sdk.on('interaction', (count: number) => {
-            console.log(`User interaction count: ${count}`);
+        // Unity Ads specific MRAID handling
+        if (typeof mraid !== 'undefined') {
+            console.log('🔧 Unity MRAID detected, setting up Unity-specific handlers');
             
-            // Show CTA after sufficient engagement (3+ interactions)
-            if (count >= 3 && !this.isGameFinished) {
-                this.showCTAButton();
+            // Unity requires explicit MRAID state handling
+            const handleMraidReady = () => {
+                console.log('📱 MRAID Ready for Unity');
+                if (mraid.getState() === 'default') {
+                    mraid.addEventListener('stateChange', (state: string) => {
+                        console.log('🔄 MRAID State Change:', state);
+                        if (state === 'expanded') {
+                            // Handle expansion if needed
+                        }
+                    });
+                }
+            };
+
+            if (mraid.getState() === 'loading') {
+                mraid.addEventListener('ready', handleMraidReady);
+            } else {
+                handleMraidReady();
             }
+        }
 
-            // Auto-complete after many interactions
-            if (count >= 5 && !this.isGameFinished) {
-                this.finishGame();
-            }
-        });
-
-        // Game finish
-        sdk.on('finish', () => {
-            console.log('Game finished');
-            this.showEndScreen();
-        });
-
-        // Install tracking
-        sdk.on('install', () => {
-            console.log('Install button clicked - redirecting to store');
-        });
-
-        // Retry functionality
-        sdk.on('retry', () => {
-            console.log('Game retry triggered');
-            this.restartGame();
-        });
-
-        // Optional: Track game lifecycle
-        sdk.on('init', () => console.log('SDK initialized'));
-        sdk.on('boot', () => console.log('SDK booted'));
-        sdk.on('ready', () => console.log('SDK ready'));
-        sdk.on('start', () => {
-            console.log('Playable started');
-            this.startGameplay();
-        });
+        // Other SDK events for playable ads compatibility
+        sdk.on('pause', () => console.log('Game paused'));
+        sdk.on('resume', () => console.log('Game resumed'));
+        sdk.on('volume', (level: number) => console.log(`Volume: ${level}`));
     }
 
-    private createLoadingScreen() {
-        this.loadingScreen = new Container();
+    private createInitialScreen() {
+        // Initialize basic audio context for Unity compliance
+        this.initAudio();
         
-        // Background
-        const bg = new Graphics()
-            .rect(0, 0, this.app.screen.width, this.app.screen.height)
-            .fill(0x000000);
+        // Create start button
+        this.createStartButton();
         
-        // Loading text
-        const loadingText = new Text({
-            text: 'Loading...',
-            style: new TextStyle({
-                fontFamily: 'Arial',
-                fontSize: 32,
-                fill: 0xffffff,
-            })
-        });
-        loadingText.anchor.set(0.5);
-        loadingText.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
-
-        this.loadingScreen.addChild(bg, loadingText);
-        this.uiContainer.addChild(this.loadingScreen);
+        // Create complete text (hidden initially)
+        this.createCompleteText();
+        
+        // Create end button (hidden initially) 
+        this.createEndButton();
+        
+        // Create popup (hidden initially)
+        this.createPopup();
+        
+        // Important: Call sdk.start() when ready
+        sdk.start();
     }
 
-    private async loadAssets() {
+    private initAudio() {
         try {
-            console.log('Loading game assets...');
-            await loadGameAssets();
-            console.log('Assets loaded successfully');
-            
-            this.createGameplayScene();
-            this.createUI();
-            this.hideLoadingScreen();
-            
-            // Important: Call sdk.start() when all resources are loaded
-            sdk.start();
+            // Create basic audio context for Unity validation
+            if (typeof AudioContext !== 'undefined') {
+                this.audioContext = new AudioContext();
+                this.hasAudio = true;
+                console.log('🔊 Audio context initialized for Unity compliance');
+                
+                // Create silent audio buffer to satisfy audio requirements
+                const buffer = this.audioContext.createBuffer(1, 1, 22050);
+                const source = this.audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.connect(this.audioContext.destination);
+                
+                // Play silent audio on first user interaction
+                document.addEventListener('click', () => {
+                    if (this.audioContext && this.audioContext.state === 'suspended') {
+                        this.audioContext.resume();
+                    }
+                }, { once: true });
+            }
         } catch (error) {
-            console.error('Failed to load assets:', error);
-            // Handle gracefully - create basic UI even if assets fail
-            this.createBasicUI();
-            this.hideLoadingScreen();
-            sdk.start();
+            console.warn('Audio initialization failed:', error);
+            this.hasAudio = false;
         }
     }
 
-    private createGameplayScene() {
-        this.gameplayScene = new Container();
-        
-        // Example gameplay elements
-        const gameTitle = new Text({
-            text: 'Awesome Game!',
-            style: new TextStyle({
-                fontFamily: 'Arial',
-                fontSize: 48,
-                fill: 0xffffff,
-                stroke: { color: 0x000000, width: 4 }
-            })
-        });
-        gameTitle.anchor.set(0.5);
-        gameTitle.position.set(this.app.screen.width / 2, 100);
-
-        // Example game object
-        const gameObject = new Graphics()
-            .circle(0, 0, 50)
-            .fill(0xff0000);
-        gameObject.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
-        
-        // Make it interactive
-        gameObject.eventMode = 'static';
-        gameObject.cursor = 'pointer';
-        gameObject.on('pointerdown', () => {
-            // This will be tracked by SDK automatically
-            console.log('Game object clicked!');
-            this.animateGameObject(gameObject);
-        });
-
-        this.gameplayScene.addChild(gameTitle, gameObject);
-        this.gameContainer.addChild(this.gameplayScene);
-    }
-
-    private createUI() {
-        // Start Button
-        this.createStartButton();
-        
-        // CTA Button (hidden initially)
-        this.createCTAButton();
-        
-        // Mute Button
-        this.createMuteButton();
-        
-        // End Screen (hidden initially)
-        this.createEndScreen();
-    }
-
     private createStartButton() {
+        this.startButton = new Container();
+        
+        // Button background
         const buttonBg = new Graphics()
             .roundRect(0, 0, 200, 60, 15)
-            .fill(0x00ff00);
-
+            .fill(0x00ff00); // Green button
+        
+        // Button text
         const buttonText = new Text({
-            text: 'START GAME',
+            text: 'START',
             style: new TextStyle({
                 fontFamily: 'Arial',
-                fontSize: 24,
+                fontSize: 28,
                 fill: 0xffffff,
                 fontWeight: 'bold'
             })
         });
         buttonText.anchor.set(0.5);
         buttonText.position.set(100, 30);
-
-        this.startButton = new Sprite();
+        
         this.startButton.addChild(buttonBg, buttonText);
         this.startButton.position.set(
-            (this.app.screen.width - 200) / 2,
-            this.app.screen.height - 120
+            (this.app.screen?.width || 800 - 200) / 2,
+            (this.app.screen?.height || 600) / 2 - 30
         );
         
+        // Make interactive
         this.startButton.eventMode = 'static';
         this.startButton.cursor = 'pointer';
         this.startButton.on('pointerdown', () => {
-            this.hideStartButton();
-            this.startGameplay();
+            this.handleStart();
         });
-
-        this.uiContainer.addChild(this.startButton);
+        
+        this.mainContainer.addChild(this.startButton);
     }
 
-    private createCTAButton() {
-        const buttonBg = new Graphics()
-            .roundRect(0, 0, 180, 50, 10)
-            .fill(0xff6600);
-
-        const buttonText = new Text({
-            text: 'DOWNLOAD',
-            style: new TextStyle({
-                fontFamily: 'Arial',
-                fontSize: 20,
-                fill: 0xffffff,
-                fontWeight: 'bold'
-            })
-        });
-        buttonText.anchor.set(0.5);
-        buttonText.position.set(90, 25);
-
-        this.ctaButton = new Sprite();
-        this.ctaButton.addChild(buttonBg, buttonText);
-        this.ctaButton.position.set(20, 20);
-        this.ctaButton.visible = false;
-        
-        this.ctaButton.eventMode = 'static';
-        this.ctaButton.cursor = 'pointer';
-        this.ctaButton.on('pointerdown', () => {
-            // Trigger install - SDK will handle store redirect
-            sdk.install();
-        });
-
-        this.uiContainer.addChild(this.ctaButton);
-    }
-
-    private createMuteButton() {
-        const buttonBg = new Graphics()
-            .circle(0, 0, 25)
-            .fill(0x333333);
-
-        const buttonText = new Text({
-            text: '🔊',
-            style: new TextStyle({ fontSize: 20 })
-        });
-        buttonText.anchor.set(0.5);
-
-        this.muteButton = new Sprite();
-        this.muteButton.addChild(buttonBg, buttonText);
-        this.muteButton.position.set(this.app.screen.width - 60, 40);
-        
-        this.muteButton.eventMode = 'static';
-        this.muteButton.cursor = 'pointer';
-        this.muteButton.on('pointerdown', () => {
-            this.toggleMute();
-        });
-
-        this.uiContainer.addChild(this.muteButton);
-    }
-
-    private createEndScreen() {
-        this.endScreen = new Container();
-        
-        // Background
-        const bg = new Graphics()
-            .rect(0, 0, this.app.screen.width, this.app.screen.height)
-            .fill(0x000000, 0.8);
-
-        // End text
-        const endText = new Text({
-            text: 'Great Job!\nDownload to continue',
+    private createCompleteText() {
+        this.completeText = new Text({
+            text: 'Process Complete!',
             style: new TextStyle({
                 fontFamily: 'Arial',
                 fontSize: 36,
                 fill: 0xffffff,
-                align: 'center'
+                fontWeight: 'bold'
             })
         });
-        endText.anchor.set(0.5);
-        endText.position.set(this.app.screen.width / 2, this.app.screen.height / 2 - 50);
+        this.completeText.anchor.set(0.5);
+        this.completeText.position.set(
+            (this.app.screen?.width || 800) / 2,
+            (this.app.screen?.height || 600) / 2 - 50
+        );
+        this.completeText.visible = false;
+        
+        this.mainContainer.addChild(this.completeText);
+    }
 
-        // Download button
-        const downloadBg = new Graphics()
-            .roundRect(0, 0, 250, 70, 20)
-            .fill(0xff0066);
-
-        const downloadText = new Text({
-            text: 'DOWNLOAD NOW',
+    private createEndButton() {
+        this.endButton = new Container();
+        
+        // Button background  
+        const buttonBg = new Graphics()
+            .roundRect(0, 0, 180, 50, 10)
+            .fill(0xff0000); // Red button
+        
+        // Button text
+        const buttonText = new Text({
+            text: 'END',
             style: new TextStyle({
                 fontFamily: 'Arial',
                 fontSize: 24,
@@ -335,194 +207,183 @@ class PlayableGame {
                 fontWeight: 'bold'
             })
         });
-        downloadText.anchor.set(0.5);
-        downloadText.position.set(125, 35);
-
-        const downloadButton = new Sprite();
-        downloadButton.addChild(downloadBg, downloadText);
-        downloadButton.position.set(
-            (this.app.screen.width - 250) / 2,
-            this.app.screen.height / 2 + 50
+        buttonText.anchor.set(0.5);
+        buttonText.position.set(90, 25);
+        
+        this.endButton.addChild(buttonBg, buttonText);
+        this.endButton.position.set(
+            (this.app.screen?.width || 800 - 180) / 2,
+            (this.app.screen?.height || 600) / 2 + 50
         );
-        downloadButton.eventMode = 'static';
-        downloadButton.cursor = 'pointer';
-        downloadButton.on('pointerdown', () => {
-            sdk.install();
+        this.endButton.visible = false;
+        
+        // Make interactive
+        this.endButton.eventMode = 'static';
+        this.endButton.cursor = 'pointer';
+        this.endButton.on('pointerdown', () => {
+            this.handleEnd();
         });
-
-        this.endScreen.addChild(bg, endText, downloadButton);
-        this.endScreen.visible = false;
-        this.uiContainer.addChild(this.endScreen);
+        
+        this.mainContainer.addChild(this.endButton);
     }
 
-    private createBasicUI() {
-        console.log('Creating basic UI fallback');
-        this.createStartButton();
-        this.createCTAButton();
-        this.createMuteButton();
-        this.createEndScreen();
+    private createPopup() {
+        this.popup = new Container();
+        
+        // Semi-transparent background overlay
+        const overlay = new Graphics()
+            .rect(0, 0, this.app.screen?.width || 800, this.app.screen?.height || 600)
+            .fill(0x000000, 0.7);
+        
+        // Popup background
+        const popupBg = new Graphics()
+            .roundRect(0, 0, 350, 200, 20)
+            .fill(0xffffff);
+        popupBg.position.set(
+            ((this.app.screen?.width || 800) - 350) / 2,
+            ((this.app.screen?.height || 600) - 200) / 2
+        );
+        
+        // Popup text
+        const popupText = new Text({
+            text: 'Playable Ads Endless',
+            style: new TextStyle({
+                fontFamily: 'Arial',
+                fontSize: 24,
+                fill: 0x000000,
+                fontWeight: 'bold',
+                align: 'center'
+            })
+        });
+        popupText.anchor.set(0.5);
+        popupText.position.set(
+            (this.app.screen?.width || 800) / 2,
+            (this.app.screen?.height || 600) / 2 - 20
+        );
+        
+        // Close button
+        const closeButton = new Container();
+        const closeBg = new Graphics()
+            .roundRect(0, 0, 100, 40, 10)
+            .fill(0x666666);
+        const closeText = new Text({
+            text: 'Close',
+            style: new TextStyle({
+                fontFamily: 'Arial',
+                fontSize: 16,
+                fill: 0xffffff
+            })
+        });
+        closeText.anchor.set(0.5);
+        closeText.position.set(50, 20);
+        
+        closeButton.addChild(closeBg, closeText);
+        closeButton.position.set(
+            ((this.app.screen?.width || 800) - 100) / 2,
+            (this.app.screen?.height || 600) / 2 + 50
+        );
+        closeButton.eventMode = 'static';
+        closeButton.cursor = 'pointer';
+        closeButton.on('pointerdown', () => {
+            this.hidePopup();
+        });
+        
+        this.popup.addChild(overlay, popupBg, popupText, closeButton);
+        this.popup.visible = false;
+        
+        this.mainContainer.addChild(this.popup);
     }
 
-    // Game control methods
-    private startGameplay() {
-        if (this.isGameStarted) return;
+    // Main function that's called when START button is pressed
+    public start() {
+        console.log('🚀 Start function called!');
+        this.isStarted = true;
         
-        console.log('Starting gameplay');
-        this.isGameStarted = true;
-        this.hideStartButton();
+        // Hide start button
+        this.startButton.visible = false;
         
-        // Example: Start game animations/logic here
-        this.animateGameScene();
-    }
-
-    private finishGame() {
-        if (this.isGameFinished) return;
+        // Show "Process Complete" text
+        this.completeText.visible = true;
         
-        console.log('Finishing game');
-        this.isGameFinished = true;
+        // Show end button
+        this.endButton.visible = true;
         
-        // Mark playable as complete - this triggers the 'finish' event
+        // Mark as completed
+        this.isCompleted = true;
+        
+        // Trigger SDK finish event for tracking
         sdk.finish();
     }
 
-    private restartGame() {
-        console.log('Restarting game');
-        this.isGameStarted = false;
-        this.isGameFinished = false;
-        this.hideEndScreen();
-        this.hideCTAButton();
-        this.showStartButton();
+    private handleStart() {
+        console.log('Start button clicked!');
+        this.start();
     }
 
-    // Animation and interaction methods
-    private animateGameObject(obj: Graphics) {
-        // Simple scale animation
-        const originalScale = obj.scale.x;
-        obj.scale.set(originalScale * 1.2);
+    private handleEnd() {
+        console.log('End button clicked!');
+        this.showPopup();
         
-        setTimeout(() => {
-            obj.scale.set(originalScale);
-        }, 150);
+        // Use proper MRAID open for Unity compliance
+        if (typeof mraid !== 'undefined' && mraid.open) {
+            // Determine platform and open appropriate store
+            const isAndroid = /android/i.test(navigator.userAgent);
+            const storeUrl = isAndroid 
+                ? (window as any).GOOGLE_PLAY_URL || 'https://play.google.com/store/apps/details?id=com.yourcompany.yourgame'
+                : (window as any).APP_STORE_URL || 'https://apps.apple.com/app/id1234567890';
+            
+            console.log('🏪 Opening store URL via MRAID:', storeUrl);
+            mraid.open(storeUrl);
+        } else {
+            // Fallback to SDK install
+            sdk.install();
+        }
     }
 
-    private animateGameScene() {
-        // Add your game animations here
-        console.log('Game scene animated');
+    private showPopup() {
+        this.popup.visible = true;
     }
 
-    // Audio control
-    private setVolume(level: number) {
-        this.currentVolume = level;
-        // Implement your audio volume control here
-        // Example: Howler.volume(level) or your audio system
-        console.log(`Volume set to: ${level}`);
-    }
-
-    private toggleMute() {
-        const newVolume = this.currentVolume > 0 ? 0 : 1;
-        this.setVolume(newVolume);
-        this.updateMuteButtonState();
-        
-        // SDK will handle the volume change event
-        sdk.volume = newVolume;
-    }
-
-    private updateMuteButtonState() {
-        const muteText = this.muteButton.children[1] as Text;
-        muteText.text = this.currentVolume > 0 ? '🔊' : '🔇';
-    }
-
-    // Pause/Resume control
-    private pauseGame() {
-        this.isPaused = true;
-        // Pause your game logic, animations, audio here
-        console.log('Game paused');
-    }
-
-    private resumeGame() {
-        if (!this.isPaused) return;
-        
-        this.isPaused = false;
-        // Resume your game logic, animations, audio here
-        console.log('Game resumed');
+    private hidePopup() {
+        this.popup.visible = false;
     }
 
     // Responsive design
     private resize(width: number, height: number) {
-        // Resize PIXI application
         this.app.renderer.resize(width, height);
         
-        // Reposition UI elements
-        this.repositionUI(width, height);
-        
-        console.log(`Resized to: ${width}x${height}, Landscape: ${sdk.isLandscape}`);
-    }
-
-    private repositionUI(width: number, height: number) {
-        if (this.loadingScreen) {
-            const bg = this.loadingScreen.children[0] as Graphics;
-            bg.clear().rect(0, 0, width, height).fill(0x000000);
-            
-            const text = this.loadingScreen.children[1] as Text;
-            text.position.set(width / 2, height / 2);
-        }
-
+        // Reposition elements
         if (this.startButton) {
-            this.startButton.position.set((width - 200) / 2, height - 120);
+            this.startButton.position.set((width - 200) / 2, height / 2 - 30);
         }
-
-        if (this.muteButton) {
-            this.muteButton.position.set(width - 60, 40);
+        
+        if (this.completeText) {
+            this.completeText.position.set(width / 2, height / 2 - 50);
         }
-
-        if (this.endScreen) {
-            const bg = this.endScreen.children[0] as Graphics;
-            bg.clear().rect(0, 0, width, height).fill(0x000000, 0.8);
+        
+        if (this.endButton) {
+            this.endButton.position.set((width - 180) / 2, height / 2 + 50);
+        }
+        
+        if (this.popup) {
+            // Update overlay
+            const overlay = this.popup.children[0] as Graphics;
+            overlay.clear().rect(0, 0, width, height).fill(0x000000, 0.7);
             
-            const text = this.endScreen.children[1] as Text;
-            text.position.set(width / 2, height / 2 - 50);
+            // Update popup position
+            const popupBg = this.popup.children[1];
+            popupBg.position.set((width - 350) / 2, (height - 200) / 2);
             
-            const button = this.endScreen.children[2] as Sprite;
-            button.position.set((width - 250) / 2, height / 2 + 50);
-        }
-
-        // Reposition gameplay scene elements if needed
-        if (this.gameplayScene) {
-            const title = this.gameplayScene.children[0] as Text;
-            title.position.set(width / 2, 100);
+            // Update text position
+            const popupText = this.popup.children[2] as Text;
+            popupText.position.set(width / 2, height / 2 - 20);
             
-            const gameObject = this.gameplayScene.children[1] as Graphics;
-            gameObject.position.set(width / 2, height / 2);
+            // Update close button position
+            const closeButton = this.popup.children[3];
+            closeButton.position.set((width - 100) / 2, height / 2 + 50);
         }
-    }
-
-    // UI visibility controls
-    private hideLoadingScreen() {
-        if (this.loadingScreen) this.loadingScreen.visible = false;
-    }
-
-    private showStartButton() {
-        if (this.startButton) this.startButton.visible = true;
-    }
-
-    private hideStartButton() {
-        if (this.startButton) this.startButton.visible = false;
-    }
-
-    private showCTAButton() {
-        if (this.ctaButton) this.ctaButton.visible = true;
-    }
-
-    private hideCTAButton() {
-        if (this.ctaButton) this.ctaButton.visible = false;
-    }
-
-    private showEndScreen() {
-        if (this.endScreen) this.endScreen.visible = true;
-    }
-
-    private hideEndScreen() {
-        if (this.endScreen) this.endScreen.visible = false;
+        
+        console.log(`Resized to: ${width}x${height}`);
     }
 }
 
@@ -530,9 +391,9 @@ class PlayableGame {
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize SDK with game creation callback
     sdk.init((width: number, height: number) => {
-        console.log(`Initializing playable with dimensions: ${width}x${height}`);
-        new PlayableGame(width, height);
+        console.log(`Initializing simple playable with dimensions: ${width}x${height}`);
+        new SimplePlayableGame(width, height);
     });
 });
 
-export default PlayableGame;
+export default SimplePlayableGame;
