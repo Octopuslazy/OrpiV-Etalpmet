@@ -5,13 +5,18 @@ const HtmlInlineScriptPlugin = require('html-inline-script-webpack-plugin');
 const CompressionPlugin = require('compression-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
-
-module.exports = (env, argv) => {
-    const isAnalyze = process.env.ANALYZE === 'true';
-    
+const fs = require('fs');
+            {
+                test: /\.html$/i,
+                use: ['html-loader'],
+            },
     return {
         mode: 'production',
         entry: './src/main.ts',
+            {
+                test: \/\.html$\/i,
+                use: ['html-loader'],
+            },
         devtool: false,
 
         output: {
@@ -130,7 +135,7 @@ module.exports = (env, argv) => {
 
         plugins: [
             new HtmlWebpackPlugin({
-                template: path.resolve(__dirname, './src/index.html'),
+                templateContent: fs.readFileSync(path.resolve(__dirname, './src/index.html'), 'utf8'),
                 filename: 'index.html',
                 inject: 'body',
                 minify: {
