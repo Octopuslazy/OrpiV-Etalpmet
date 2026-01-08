@@ -1,54 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>sleepycat</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <!-- Static store links for validators (can be overridden in CI via build-vars) -->
-    <meta name="google-play-url" content="https://play.google.com/store/apps/details?id=LeapStudio">
-    <meta name="app-store-url" content="https://apps.apple.com/app/1123">
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: gap: content: blob:; style-src * 'self' 'unsafe-inline' 'unsafe-eval' blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval' blob:; connect-src * 'self' 'unsafe-inline' 'unsafe-eval' blob: data:;">
-    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="ad-networks" content="mraid,dapi,google,facebook,unity,applovin,ironsource,vungle,mintegral,tapjoy,snapchat,tiktok">
+    <title>Playable Ad</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; }
-        #app { width: 100%; height: 100%; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            background: #1099bb;
+        }
+        
+        #game-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
     </style>
-    <!-- Pre-bundle lifecycle stubs so ad networks (Mintegral etc.) can detect hooks early -->
-    <script>
-        window.mintGameStart = window.mintGameStart || function() { try { window.gameStart && window.gameStart(); } catch (e) {} };
-        window.mintGameClose = window.mintGameClose || function() { try { window.gameClose && window.gameClose(); } catch (e) {} };
-        window.gameReady = window.gameReady || function() { try { /* no-op until game signals ready */ } catch (e) {} };
-        function gameStart() {window.mintGameStart && window.mintGameStart()};
-        function gameClose() {window.mintGameClose && window.mintGameClose()}
-    </script>
-        <!-- build-vars will be generated into src/build-vars.js by the prebuild step -->
-      
-        <!-- Minimal static MRAID shim that uses meta tags as fallback so validators detect mraid.open -->
-        <script>
-            (function(){
-                try {
-                    var gp = document.querySelector('meta[name="google-play-url"]') && document.querySelector('meta[name="google-play-url"]').getAttribute('content');
-                    var ap = document.querySelector('meta[name="app-store-url"]') && document.querySelector('meta[name="app-store-url"]').getAttribute('content');
-                    if (!window.mraid) {
-                        window.mraid = {
-                            open: function(url){ try { var target = (url && typeof url === 'string') ? url : (gp || ap || '/'); window.open(target, '_blank'); } catch(e){} },
-                            isViewable: function(){ return true; },
-                            getState: function(){ return 'default'; },
-                            addEventListener: function(){},
-                            removeEventListener: function(){}
-                        };
-                    }
-                    if (!window.MRAID) { try { window.MRAID = window.mraid; } catch(e){} }
-                    if (!window.MRAID_STORE_URLS) {
-                        try { window.MRAID_STORE_URLS = { android: gp || '', ios: ap || '' }; } catch(e){}
-                    }
-                } catch(e) {}
-            })();
-        </script>
- 
-
 </head>
 <body>
-    <div id="app"></div>
+    <div id="game-container"></div>
+    
+    <!-- Playable SDK will auto-inject build variables here -->
+    <script>
+        // Prevent context menu
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        
+        // Prevent zoom gestures
+        document.addEventListener('gesturestart', e => e.preventDefault());
+        document.addEventListener('gesturechange', e => e.preventDefault());
+        document.addEventListener('gestureend', e => e.preventDefault());
+        
+        // Handle touch events for better mobile support
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+        
+        // Disable text selection
+        document.onselectstart = function() { return false; };
+        document.onmousedown = function() { return false; };
+    </script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+import './playableMain';
 
-window.WebAssembly = undefined;
-import './main.ts';
+// Entry point for playable ads
+console.log('🚀 Playable Ads initialized!');

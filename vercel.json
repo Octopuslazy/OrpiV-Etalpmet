@@ -1,4 +1,0 @@
-{
-  "buildCommand": "npm run build && cp dist/RunningChicken_*.html dist/index.html",
-  "outputDirectory": "dist"
-}
