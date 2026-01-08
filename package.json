@@ -1,0 +1,26 @@
+{
+  "name": "orpiv-etalpmet",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Octopuslazy/OrpiV-Etalpmet.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Octopuslazy/OrpiV-Etalpmet/issues"
+  },
+  "homepage": "https://github.com/Octopuslazy/OrpiV-Etalpmet#readme",
+  "dependencies": {
+    "@esotericsoftware/spine-pixi-v8": "^4.2.96",
+    "pixi": "^0.3.1",
+    "pixi.js": "^8.15.0"
+  }
+}
